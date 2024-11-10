@@ -1,14 +1,10 @@
 # Deep Neural Network Based Crowd Density Estimation
 
----
-
 This project aims to estimate crowd density using only deep neural networks, without relying on any other detection methods. In the planning of this project, the refactoring of the code of the existing thesis method will be prioritized first, and then a new network architecture will be attempted to be used for density estimation
 
 </br>
 
 ## Features
-
----
 
 * 📕Refactor the code to improve readability
 * 📈Visualization of results, output of images with bracketing and density maps
@@ -19,8 +15,6 @@ This project aims to estimate crowd density using only deep neural networks, wit
 
 ## Install
 
----
-
 There are no special environmental requirements for this project, test with:
 
 `Ubuntu 22.04 | CUDA-11.8 | Pytorch-2.0.0`
@@ -30,8 +24,6 @@ There are no special environmental requirements for this project, test with:
 </br>
 
 ## Dataset
-
----
 
 This project use [Kaggle-ShanghaiTech](https://www.kaggle.com/datasets/tthien/shanghaitech) with **Part-B**, your file structure should be:  
 
@@ -59,8 +51,6 @@ Crowd-Density-Estimation
 
 ## Train
 
----
-
 The hyperparameters to be used for training are all set in `config.py`
 
 ```bash
@@ -73,8 +63,6 @@ python main.py --mode both
 </br>
 
 ## Valid
-
----
 
 The hyperparameters to be used for validate are all set in `config.py`
 
@@ -94,8 +82,6 @@ python main.py --mode both
 
 ## Experiments
 
----
-
 | Network | Best MAE | Epoch |
 | ------- | -------- | ----- |
 | CAN     | 9.329    | 100   |
@@ -107,7 +93,5 @@ python main.py --mode both
 </br>
 
 ## References
-
----
 
 [Context-Aware Crowd Counting](https://arxiv.org/abs/1811.10452)
