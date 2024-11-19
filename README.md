@@ -8,7 +8,7 @@ This project aims to estimate crowd density using only deep neural networks, wit
 
 * 📕Refactor the code to improve readability
 * 📈Visualization of results, output of images with bracketing and density maps
-* 🛠️Structural harmonization, where only the network architecture is changed in the different approaches,     while the rest remains unchanged
+* 🛠️Structural harmonization, where only the network architecture is changed in the different approaches, while the rest remains unchanged
 * 🚀[PLAN] Planning to refactor using Rust
 * 💻[PLAN] Planning to design a real-time crowd estimation application
 
@@ -21,6 +21,8 @@ There are no special environmental requirements for this project, test with:
 * `Ubuntu 22.04 | CUDA-11.8 | Pytorch-2.0.0`
 
 * `Windows 11 | CUDA-12.4 | Pytorch-2.4.0`
+
+* [PLAN] Support for only-cpu in the future
 
 </br>
 
@@ -46,7 +48,7 @@ Crowd-Density-Estimation
 │          └─train_data
 │              ├─ground_truth
 │              └─images
-├─network
+├─models
 └─result
     ├─ckpt
     ├─density
@@ -88,13 +90,13 @@ python main.py --mode both
 
 ## Experiments
 
-| Network | Best MAE | Epoch |
-| ------- | -------- | ----- |
-| CAN     | 9.329    | 100   |
-|         |          |       |
-|         |          |       |
-|         |          |       |
-|         |          |       |
+| Network                    | Best MAE ↓ | Epoch          |
+| -------------------------- | ---------- | -------------- |
+| CAN                        | 9.329      | 100            |
+| CAN(net structure revised) | 15.315     | 100(less time) |
+| P2P-Net                    |            |                |
+|                            |            |                |
+|                            |            |                |
 
 </br>
 

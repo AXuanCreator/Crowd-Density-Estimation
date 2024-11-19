@@ -2,33 +2,40 @@ import os
 import glob
 from typing import Any
 
+import argparse
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import cfg
 from dataset import CustomDataset
-from network.can import CANNet
+from models.can import CANet, CanAlexNet
 from utils import save_model, load_model, save_density_image, save_image_with_contours, merge_density
 
 
-def main(mode):
+def main(mode, net):
 	start_epoch = 1
 	# load model
-	model = CANNet().to('cuda')
+	if net == 'can':
+		model = CANet().to('cuda')
+	elif net == 'can-alex':
+		model = CanAlexNet().to('cuda')
+	else:
+		raise NotImplementedError
+
 	if cfg.DATA.USE_CKPT:
-		if cfg.DATA.CKPT_DATA is not None:
-			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.TRAIN.CKPT_DATA}/*.pth'), key=os.path.getmtime)[
-				-1]
-		elif cfg.DATA.CKPT_NAME is not None:
+		if cfg.DATA.CKPT_DATA is not None:  # 选择特定日期的最新权重
+			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.TRAIN.CKPT_DATA}/{net}/*.pth'),
+			              key=os.path.getmtime)[-1]
+		elif cfg.DATA.CKPT_NAME is not None:  # 选择特定关键词的最新权重
 			paths = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth'), key=os.path.getmtime)
 			path = [path for path in paths if f'{cfg.TRAIN.CKPT_NAME}' in path][-1]  # 获取指定名字的模型
-		else:
+		else:  # 选择最新权重
 			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth'), key=os.path.getmtime)[-1]  # newest
 		load_model(path, model)
 		start_epoch = int(path.split('\\')[-1].split('_')[1]) + 1
 
-	criterion = torch.nn.MSELoss(reduction='sum')  # loss sum
+	criterion = torch.nn.MSELoss(reduction='sum')  # loss function
 	optimizer = torch.optim.Adam(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 
 	best_mae = 1e10
@@ -44,7 +51,7 @@ def main(mode):
 
 		if epoch % cfg.DATA.CKPT_SAVE_EPOCH == 0:
 			save_name = f'ckpt_{epoch}_{cfg.CURRENT_TIME}'
-			save_model(path=cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.DATE_TIME}', model=model, name=save_name)
+			save_model(path=cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.DATE_TIME}/{net}', model=model, name=save_name)
 
 
 def train(model, criterion, optimizer, epoch):
@@ -133,4 +140,9 @@ def valid(model, epoch):
 
 
 if __name__ == '__main__':
-	main(mode='both')
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--mode', '-m', type=str, default='both', help='train/valid/both')
+	parser.add_argument('--net', '-n', type=str, default='can', help='models: can/can-alex')
+
+	args = parser.parse_args()
+	main(args.mode, args.net)

@@ -21,8 +21,8 @@ __C.DATE_TIME = datetime.now().strftime("%Y-%m-%d")  # 当日时间(按运行程
 # -------------------------DATA--------------------------- #
 __C.DATA.TRANSFORM = transforms.Compose([transforms.ToTensor(),
                                          transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-__C.DATA.SAVE_IMAGE_EPOCH = 5
-__C.DATA.CKPT_SAVE_EPOCH = 5  # 每_epoch保存权重
+__C.DATA.SAVE_IMAGE_EPOCH = 10
+__C.DATA.CKPT_SAVE_EPOCH = 10  # 每_epoch保存权重
 
 __C.DATA.ROOT = './dataset/ShanghaiTech_Crowd_Counting_Dataset/part_B_final'
 __C.DATA.SAVE_IMAGE_PATH = './result/images'
@@ -30,7 +30,7 @@ __C.DATA.SAVE_DENSITY_PATH = './result/density'
 __C.DATA.CKPT_SAVE_PATH = './result/ckpt/'  # 模型权重文件保存位置
 __C.DATA.LOG_DIR = './logs/tensorboard'
 
-__C.DATA.USE_CKPT = True  # 使用保存的模型
+__C.DATA.USE_CKPT = False  # 使用保存的模型
 __C.DATA.CKPT_DATA = None  # or like '2024-11-11'
 __C.DATA.CKPT_NAME = None  # or like 'ckpt_40'
 
@@ -39,7 +39,7 @@ __C.DATA.SCALING = 8
 
 # --------------------------TRAIN-------------------------- #
 __C.TRAIN.SHUFFLE = True
-__C.TRAIN.EPOCHS = 50
+__C.TRAIN.EPOCHS = 100
 __C.TRAIN.PRETRAINED = False
 __C.TRAIN.LR = 1e-4
 __C.TRAIN.WEIGHT_DECAY = 5 * 1e-4
