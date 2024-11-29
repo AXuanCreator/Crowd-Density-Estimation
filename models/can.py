@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 from .context import CANContext
 
-
+# todo: 将这两个函数移动到别的文件
 def make_layers(layer, in_channels=3, batch_norm=False, dilation=False):
 	if dilation:
 		d_rate = 2
@@ -25,15 +25,17 @@ def make_layers(layer, in_channels=3, batch_norm=False, dilation=False):
 	return nn.Sequential(*layers)
 
 
-def make_conv2d(in_c, out_c, k_size, stride=1, padding=1, dilation=1, batch_norm=False):
+def make_conv2d(in_c, out_c, k_size, stride=1, padding=1, dilation=1, batch_norm=False, activation='relu'):
 	layers = []
 	layers += [
 		nn.Conv2d(in_channels=in_c, out_channels=out_c, kernel_size=k_size, stride=stride, padding=padding, dilation=dilation)]
 	if batch_norm:
-		layers += [nn.BatchNorm2d(out_c),
-		           nn.ReLU(inplace=True)]
-	else:
+		layers += [nn.BatchNorm2d(out_c)]
+
+	if activation == 'relu':
 		layers += [nn.ReLU(inplace=True)]
+	elif activation == 'sigmoid':
+		layers += [nn.Sigmoid()]
 
 	return layers
 
@@ -108,6 +110,7 @@ class CanAlexNet(nn.Module):
 			frontend_weights = list(self.frontend.state_dict().items())
 			for i in range(len(self.frontend.state_dict().items())):
 				frontend_weights[i][1].data[:] = alex_weights[i][1].data[:]
+
 
 	def forward(self, x):
 		x = self.frontend(x)

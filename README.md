@@ -103,3 +103,7 @@ python main.py --mode both
 ## References
 
 [Context-Aware Crowd Counting](https://arxiv.org/abs/1811.10452)
+
+
+
+$$ A = \int_{0 \leq u < 3} \frac{0}{u} + \int_{3 \leq u < 4.5}{\frac{\frac{2}{3}u-2}{u}} + \int_{4.5 \leq u < 5} \frac{1}{u}, $$

@@ -5,11 +5,13 @@ from typing import Any
 import argparse
 import torch
 from torch.utils.data import DataLoader
+from torch import Tensor
 from tqdm import tqdm
 
 from config import cfg
 from dataset import CustomDataset
 from models.can import CANet, CanAlexNet
+from models.p2pnet import P2PNet
 from utils import save_model, load_model, save_density_image, save_image_with_contours, merge_density
 
 
@@ -20,9 +22,12 @@ def main(mode, net):
 		model = CANet().to('cuda')
 	elif net == 'can-alex':
 		model = CanAlexNet().to('cuda')
+	elif net == 'p2p':
+		model = P2PNet().to('cuda')
 	else:
 		raise NotImplementedError
 
+	# loading checkpoints
 	if cfg.DATA.USE_CKPT:
 		if cfg.DATA.CKPT_DATA is not None:  # 选择特定日期的最新权重
 			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.TRAIN.CKPT_DATA}/{net}/*.pth'),
@@ -35,9 +40,11 @@ def main(mode, net):
 		load_model(path, model)
 		start_epoch = int(path.split('\\')[-1].split('_')[1]) + 1
 
+	# loss function
 	criterion = torch.nn.MSELoss(reduction='sum')  # loss function
 	optimizer = torch.optim.Adam(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 
+	# train & test
 	best_mae = 1e10
 	for epoch in tqdm(range(start_epoch, cfg.TRAIN.EPOCHS + 1)):
 		if mode == 'both' or mode == 'train':
@@ -71,7 +78,9 @@ def train(model, criterion, optimizer, epoch):
 		tgt = data['gt'].to('cuda', dtype=torch.float32)
 		info = data['info']
 
-		output = model(img).squeeze()
+		output = model(img)
+		if isinstance(output, Tensor):
+			output = output.squeeze()
 
 		loss = criterion(output, tgt)
 		optimizer.zero_grad()
@@ -142,7 +151,7 @@ def valid(model, epoch):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--mode', '-m', type=str, default='both', help='train/valid/both')
-	parser.add_argument('--net', '-n', type=str, default='can', help='models: can/can-alex')
+	parser.add_argument('--net', '-n', type=str, default='p2p', help='models: can/can-alex')
 
 	args = parser.parse_args()
 	main(args.mode, args.net)
