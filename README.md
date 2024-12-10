@@ -102,6 +102,6 @@ python main.py --mode both
 
 ## References
 
-[Context-Aware Crowd Counting](https://arxiv.org/abs/1811.10452)
+[Context-Aware Crowd Counting](https://arxiv.org/abs/1811.10452)</br>
 [Rethinking Counting and Localization in Crowds:A Purely Point-Based Framework](https://arxiv.org/abs/2107.12746)
 

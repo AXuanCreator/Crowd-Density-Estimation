@@ -11,7 +11,7 @@ from tqdm import tqdm
 from config import cfg
 from dataset import CustomDataset
 from models.can import CANet, CanAlexNet
-from models.p2pnet import P2PNet
+from models.p2pnet import P2PNet, P2P_Loss
 from utils import save_model, load_model, save_density_image, save_image_with_contours, merge_density
 
 
@@ -41,7 +41,10 @@ def main(mode, net):
 		start_epoch = int(path.split('\\')[-1].split('_')[1]) + 1
 
 	# loss function
-	criterion = torch.nn.MSELoss(reduction='sum')  # loss function
+	if net == 'can' or net == 'can-alex':
+		criterion = torch.nn.MSELoss(reduction='sum')  # loss function
+	elif net == 'p2p':
+		criterion = P2P_Loss()
 	optimizer = torch.optim.Adam(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 
 	# train & test
