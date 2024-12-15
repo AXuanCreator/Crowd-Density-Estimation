@@ -51,9 +51,9 @@ def main(mode, net):
 	best_mae = 1e10
 	for epoch in tqdm(range(start_epoch, cfg.TRAIN.EPOCHS + 1)):
 		if mode == 'both' or mode == 'train':
-			train(model=model, criterion=criterion, optimizer=optimizer, epoch=epoch)
+			train(model=model, net=net, criterion=criterion, optimizer=optimizer, epoch=epoch)
 		if mode == 'both' or mode == 'valid':
-			pred_mae = valid(model=model, epoch=epoch)
+			pred_mae = valid(model=model, net=net, epoch=epoch)
 
 			print(f'epoch: {epoch}\tpred_mae: {pred_mae:.3f}\tbest_mae: {best_mae:.3f}')
 			if pred_mae < best_mae:
@@ -64,13 +64,14 @@ def main(mode, net):
 			save_model(path=cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.DATE_TIME}/{net}', model=model, name=save_name)
 
 
-def train(model, criterion, optimizer, epoch):
+def train(model, net, criterion, optimizer, epoch):
 	total_loss = 0
 	model.train()
 
 	# load dataset
 	train_dataset: Any = DataLoader(CustomDataset(root=os.path.join(cfg.DATA.ROOT, 'train_data'),
 	                                              mode='train',
+	                                              net=net,
 	                                              scaling=cfg.DATA.SCALING,
 	                                              transform=cfg.DATA.TRANSFORM),  # todo: 这里使用transformer会导致output为nan
 	                                batch_size=cfg.DATA.BATCH_SIZE,
@@ -78,34 +79,57 @@ def train(model, criterion, optimizer, epoch):
 
 	for i, data in enumerate(train_dataset):
 		img = data['image'].to('cuda', dtype=torch.float32)
-		tgt = data['gt'].to('cuda', dtype=torch.float32)
+		# target
+		if isinstance(data['gt'], Tensor):
+			data['gt'] = data['gt'].to('cuda', dtype=torch.float32)
+		else:
+			# 此等情况为嵌套字典，在net=p2p时触发
+			for key, value in data['gt'].items():
+				data['gt'][key] = value.to('cuda', dtype=torch.float32)
+
 		info = data['info']
 
-		output = model(img)
+		output: Any = model(img)
 		if isinstance(output, Tensor):
 			output = output.squeeze()
 
-		loss = criterion(output, tgt)
 		optimizer.zero_grad()
+		if net == 'can' or net == 'can-alex':
+			loss = criterion(output, data['gt'])
+		elif net == 'p2p':
+			loss_dict = m(output, data['gt'])
+			weight_dict = criterion.weight_dict
+			loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
+		else:
+			raise NotImplementedError
 		loss.backward()
 		optimizer.step()
 
 		with torch.no_grad():
 			total_loss += loss.item()
 
-		if i % cfg.TRAIN.LOG == 0:
-			print(f'epoch:[{epoch}][{i}/{len(train_dataset)}]\t'
-			      f'loss:{loss.item():.3f}->avg:{total_loss / (i + 1):.3f}\t'
-			      f'pred:{torch.sum(output).item():.3f}->tgt:{torch.sum(tgt).item():.3f}')
+			if i % cfg.TRAIN.LOG == 0:
+				if net == 'p2p':  # todo: 封装p2p和can的，不要东一块西一块
+					outputs_scores = torch.nn.functional.softmax(output['pred_logits'], -1)[:, :, 1][0]
+					pred_cnt = int((outputs_scores > 0.5).sum())  # threshold一般为0.5
+					tgt_cnt = torch.sum(data['gt']['labels']).item()
+				else:
+					pred_cnt = torch.sum(output).item()
+					tgt_cnt = torch.sum(data['gt']).item()
+
+				print(f'epoch:[{epoch}][{i}/{len(train_dataset)}]\t'
+				      f'loss:{loss.item():.3f}->avg:{total_loss / (i + 1):.3f}\t'
+				      f'pred:{pred_cnt:.3f}->tgt:{tgt_cnt:3f}')
 
 	epoch_loss = total_loss / len(train_dataset)
 	print(f'epoch: {epoch} loss: {epoch_loss:.3f}')
 
 
-def valid(model, epoch):
+def valid(model, net, epoch):
 	print('valid...')
 	valid_dataset: Any = DataLoader(CustomDataset(root=os.path.join(cfg.DATA.ROOT, 'test_data'),
 	                                              mode='valid',
+	                                              net=net,
 	                                              transform=cfg.DATA.TRANSFORM),
 	                                batch_size=1,
 	                                shuffle=False)

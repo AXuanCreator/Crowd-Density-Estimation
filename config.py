@@ -34,7 +34,7 @@ __C.DATA.USE_CKPT = False  # 使用保存的模型
 __C.DATA.CKPT_DATA = None  # or like '2024-11-11'
 __C.DATA.CKPT_NAME = None  # or like 'ckpt_40'
 
-__C.DATA.BATCH_SIZE = 4
+__C.DATA.BATCH_SIZE = 1
 __C.DATA.SCALING = 8
 
 # --------------------------TRAIN-------------------------- #

@@ -11,23 +11,38 @@ from torchvision import transforms
 from utils import generate_h5
 from config import cfg
 
+"""
+todo:
+dataset需要有标签0/1和其对应的x、y坐标
+"""
+
 
 class CustomDataset(Dataset):
-	def __init__(self, root, mode, scaling=None, transform=None):
+	def __init__(self, root, mode, net, scaling=None, transform=None):
 		self.root = root
+		self.mode = mode
+		self.net = net
 		self.image_path = os.path.join(self.root, 'images')
 		self.gt_path = os.path.join(self.root, 'ground_truth')
 
 		self.image_list = sorted(glob.glob(self.image_path + '/*.jpg'))
-		self.gt_list = sorted(glob.glob(self.gt_path + '/*.h5'))
 
-		if len(self.gt_list) == 0:
-			print('generate .h5 from .mat')
-			generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2])
-			self.gt_list = sorted(glob.glob(self.gt_path + '/*.h5'))
+		if self.net == 'can' or self.net == 'can-alex':
+			self.gt_list = sorted(glob.glob(self.gt_path + '/*can*.h5'))
+			if len(self.gt_list) == 0:
+				print('generate .h5 from .mat (guassian filter)')
+				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='can')
+				self.gt_list = sorted(glob.glob(self.gt_path + '/*can*.h5'))
+		elif self.net == 'p2p':
+			self.gt_list = sorted(glob.glob(self.gt_path + '/*p2p*.h5'))
+			if len(self.gt_list) == 0:
+				print('generate .h5 from .mat (no filter)')
+				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='p2p')
+				self.gt_list = sorted(glob.glob(self.gt_path + '/*p2p*.h5'))
+		else:
+			assert self.net is None, 'net provision required'
 
 		self.transform = transform
-		self.mode = mode
 		self.scaling = scaling
 
 	def __len__(self):
@@ -39,9 +54,13 @@ class CustomDataset(Dataset):
 		gt = h5py.File(self.gt_list[idx], 'r')
 		gt = np.asarray(gt['density'])
 
+		if self.net == 'p2p':  # todo: 优化，将can和p2p模块化，而不是东一处西一处
+			image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_CUBIC)
+
 		rig = None  # 数据增强操作记录
 		if self.mode == 'train':
 			image, gt, rig = self._data_enhancement(image, gt)
+
 		rgb = image.copy()
 
 		if cfg.DEBUG:
@@ -54,14 +73,34 @@ class CustomDataset(Dataset):
 			image = transforms.ToTensor()(image.copy())
 			image = image / 255
 
+		# image的序号名
 		info = self.mode + '_' + os.path.basename(self.image_list[idx]).split('_')[1].split('.')[0] + f'_{rig}'
 
-		return {
-			'image': image,
-			'gt': gt,
-			'info': info,
-			'rgb': rgb,  # todo: 分为训练和测试返回不同的内容
-		}
+		if self.net == 'can' or self.net == 'can-alex':
+			batch = {
+				'image': image,
+				'gt': gt,
+				'info': info,
+				'rgb': rgb,  # todo: 分为训练和测试返回不同的内容
+			}
+		elif self.net == 'p2p':
+			# gt需要额外处理，添加反例
+			labels = gt.flatten()  # 展平
+			points = np.indices(gt.shape).reshape(2, -1).T  # gt_index对应的坐标
+			gt = {
+				'labels': labels,
+				'points': points,
+			}
+			batch = {
+				'image': image,
+				'gt': gt,
+				'info': info,
+				'rgb': rgb,  # todo: 分为训练和测试返回不同的内容
+			}
+		else:
+			assert self.net is None, 'net provision required'
+
+		return batch
 
 	def _data_enhancement(self, image, gt):
 		"""
@@ -100,7 +139,9 @@ class CustomDataset(Dataset):
 			crop_gt = np.fliplr(crop_gt)
 
 		# 对gt密度图进行缩放，但sum并不发生改变(0.0x误差)。缩放是为了提高网络的感受野，并且符合网络输出形状
-		if self.scaling is not None and not cfg.DEBUG:
-			crop_gt = cv2.resize(crop_gt, (int(crop_gt.shape[1] / 8), int(crop_gt.shape[0] / 8)), interpolation=cv2.INTER_CUBIC) * self.scaling ** 2
+		# p2p模式无需缩放
+		if self.scaling is not None and not cfg.DEBUG and self.net != 'p2p':
+			crop_gt = cv2.resize(crop_gt, (
+			int(crop_gt.shape[1] / 8), int(crop_gt.shape[0] / 8)), interpolation=cv2.INTER_CUBIC) * self.scaling ** 2
 
 		return crop_image, crop_gt, rig

@@ -9,23 +9,40 @@ import scipy.io as io
 from scipy.ndimage import gaussian_filter
 
 
-def generate_h5(gt_path, h, w):
+def generate_h5(gt_path, h, w, net=None):
+	# todo: 对于配置高的电脑实际上不需要p2p的下采样
 	gt_mat_path = sorted(glob.glob(gt_path + '/*.mat'))
-	for gmp in gt_mat_path:
-		mat = io.loadmat(gmp)
-		mat = mat['image_info'][0, 0][0, 0][0]
-		k = np.zeros((h, w))
+	if net == 'can' or net == 'can-alex':
+		for gmp in gt_mat_path:
+			mat = io.loadmat(gmp)
+			mat = mat['image_info'][0, 0][0, 0][0]
+			k = np.zeros((h, w))
 
-		for i in range(len(mat)):
-			mat_x = int(mat[i][0])
-			mat_y = int(mat[i][1])
-			if mat_x < w and mat_y < h:
-				k[mat_y][mat_x] = 1
+			for i in range(len(mat)):
+				mat_x = int(mat[i][0])
+				mat_y = int(mat[i][1])
+				if mat_x < w and mat_y < h:
+					k[mat_y][mat_x] = 1
 
-		k = gaussian_filter(k, 15)  # 高斯滤波会让值"散开"，但总值(sum)几乎不变。此举是为了提高神经网络的的容错率，加快收敛
+			k = gaussian_filter(k, 15)  # 高斯滤波会让值"散开"，但总值(sum)几乎不变。此举是为了提高神经网络的的容错率，加快收敛
 
-		with h5py.File(gmp.replace('mat', 'h5'), 'w') as hf:
-			hf['density'] = k
+			with h5py.File(gmp.replace('.mat', f'-can.h5'), 'w') as hf:
+				hf['density'] = k
+
+	elif net == 'p2p':
+		for gmp in gt_mat_path:
+			mat = io.loadmat(gmp)
+			mat = mat['image_info'][0, 0][0, 0][0]
+			k = np.zeros((h // 2, w // 2))
+
+			for i in range(len(mat)):
+				mat_x = int(mat[i][0])
+				mat_y = int(mat[i][1])
+				if mat_x < w and mat_y < h:
+					k[mat_y // 2][mat_x // 2] = 1
+
+			with h5py.File(gmp.replace('.mat', f'-p2p.h5'), 'w') as hf:
+				hf['density'] = k
 
 
 def save_model(path, model, name):
@@ -124,8 +141,8 @@ def save_image_with_contours(path, binary_x, rgb):
 	for contour in contours:
 		x, y, w, h = cv2.boundingRect(contour)
 		# 扩大框的尺寸
-		h = h*(10-h) if h < 10 else h
-		w = w*(10-w) if w < 10 else w
+		h = h * (10 - h) if h < 10 else h
+		w = w * (10 - w) if w < 10 else w
 		cv2.rectangle(rgb, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
 	cv2.imwrite(path, rgb[:, :, [2, 1, 0]])  # imwrite需要bgr格式
