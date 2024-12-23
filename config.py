@@ -21,7 +21,7 @@ __C.DATE_TIME = datetime.now().strftime("%Y-%m-%d")  # 当日时间(按运行程
 # -------------------------DATA--------------------------- #
 __C.DATA.TRANSFORM = transforms.Compose([transforms.ToTensor(),
                                          transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
-__C.DATA.SAVE_IMAGE_EPOCH = 10
+__C.DATA.SAVE_IMAGE_EPOCH = 1
 __C.DATA.CKPT_SAVE_EPOCH = 10  # 每_epoch保存权重
 
 __C.DATA.ROOT = './dataset/ShanghaiTech_Crowd_Counting_Dataset/part_B_final'

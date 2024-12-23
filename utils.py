@@ -124,7 +124,8 @@ def save_image_with_contours(path, binary_x, rgb):
 		binary_x: [ndarray] 二值化密度图 [h, w]
 		rgb: [tensor/ndarray] RGB图像 [h, w, 3]
 
-	Returns: None | 输出图像文件
+	Returns:
+	 	None | 输出图像文件
 	todo: 优化检测框，二值化太极端了
 	"""
 	assert len(binary_x.shape) == 2 and len(rgb.shape) == 3, 'binary_x shape: [h, w] | rgb shape: [h, w, 3]'
@@ -156,7 +157,8 @@ def merge_density(X: list):
 	Args:
 		X: list[tensor/ndarray] len->4
 
-	Returns: ndarray
+	Returns:
+		ndarray
 	"""
 	assert len(X) == 4, 'input length must be 4'
 
@@ -167,3 +169,31 @@ def merge_density(X: list):
 	result = np.vstack((top, bottom))
 
 	return result
+
+
+def plot_points_on_rgb(coords, rgb, path, color='red'):
+	"""
+	在RGB图上显示coords的点
+	Args:
+		coords: [ndarray] 坐标 [points_num, 2]
+		rgb: [tensor/ndarray] RGB图像 [h, w, 3]
+		path:
+		color:
+	Returns:
+		None | 输出图像
+	"""
+	if isinstance(rgb, torch.Tensor):
+		rgb = rgb.detach().cpu().numpy()
+
+	if not os.path.exists(os.path.dirname(path)):
+		os.makedirs(os.path.dirname(path), exist_ok=True)
+
+	if color == 'red':
+		color = [255, 0, 0]
+	else:
+		color = [0, 0, 255]
+
+	x_coords, y_coords = coords[:, 0], coords[:, 1]
+	rgb[y_coords, x_coords] = color
+
+	cv2.imwrite(path, rgb[:, :, [2, 1, 0]])

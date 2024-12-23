@@ -54,6 +54,7 @@ class CustomDataset(Dataset):
 		gt = h5py.File(self.gt_list[idx], 'r')
 		gt = np.asarray(gt['density'])
 
+		# 下采样防止显存溢出
 		if self.net == 'p2p':  # todo: 优化，将can和p2p模块化，而不是东一处西一处
 			image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_CUBIC)
 

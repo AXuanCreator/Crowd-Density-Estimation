@@ -130,8 +130,8 @@ class P2PNet(nn.Module):
 		classification = classification.view(batch_size, width, height, 4, 2).contiguous().view(P4_X.shape[0], -1, 2)
 
 		return {
-			'pred_logits': classification,
-			'pred_points': output_coord,
+			'pred_logits': classification,  # 每个点都会有两个类别分数，用于表示该点为人/非人的概率
+			'pred_points': output_coord,  # 点坐标
 		}
 
 
