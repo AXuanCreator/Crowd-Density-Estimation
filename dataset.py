@@ -7,14 +7,10 @@ import h5py
 import numpy as np
 from torch.utils.data import Dataset
 from torchvision import transforms
+from skimage.measure import block_reduce
 
 from utils import generate_h5
 from config import cfg
-
-"""
-todo:
-dataset需要有标签0/1和其对应的x、y坐标
-"""
 
 
 class CustomDataset(Dataset):
@@ -24,26 +20,11 @@ class CustomDataset(Dataset):
 		self.net = net
 		self.image_path = os.path.join(self.root, 'images')
 		self.gt_path = os.path.join(self.root, 'ground_truth')
-
 		self.image_list = sorted(glob.glob(self.image_path + '/*.jpg'))
-
-		if self.net == 'can' or self.net == 'can-alex':
-			self.gt_list = sorted(glob.glob(self.gt_path + '/*can*.h5'))
-			if len(self.gt_list) == 0:
-				print('generate .h5 from .mat (guassian filter)')
-				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='can')
-				self.gt_list = sorted(glob.glob(self.gt_path + '/*can*.h5'))
-		elif self.net == 'p2p':
-			self.gt_list = sorted(glob.glob(self.gt_path + '/*p2p*.h5'))
-			if len(self.gt_list) == 0:
-				print('generate .h5 from .mat (no filter)')
-				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='p2p')
-				self.gt_list = sorted(glob.glob(self.gt_path + '/*p2p*.h5'))
-		else:
-			assert self.net is None, 'net provision required'
-
+		self.gt_list = None
 		self.transform = transform
 		self.scaling = scaling
+		self._prepare_gt()
 
 	def __len__(self):
 		return len(self.image_list)
@@ -51,57 +32,48 @@ class CustomDataset(Dataset):
 	def __getitem__(self, idx):
 		image = cv2.imread(self.image_list[idx])
 		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-		gt = h5py.File(self.gt_list[idx], 'r')
-		gt = np.asarray(gt['density'])
+		gt = np.asarray(h5py.File(self.gt_list[idx], 'r')['density'])
+		rig = None
 
-		# 下采样防止显存溢出
-		if self.net == 'p2p':  # todo: 优化，将can和p2p模块化，而不是东一处西一处
-			image = cv2.resize(image, (image.shape[1] // 2, image.shape[0] // 2), interpolation=cv2.INTER_CUBIC)
+		if self.net == 'p2p':
+			image, gt = self._data_downsample(image, gt, downsample=4)
 
-		rig = None  # 数据增强操作记录
+		if cfg.DEBUG:
+			combine_image = np.hstack((image, np.repeat(np.expand_dims(gt, axis=-1), 3, axis=-1) * 255))
+			cv2.imwrite(f'./debug/image&gt_{cfg.CURRENT_TIME}.png', combine_image)
+
 		if self.mode == 'train':
 			image, gt, rig = self._data_enhancement(image, gt)
 
 		rgb = image.copy()
+		info = f"{self.mode}_{os.path.basename(self.image_list[idx]).split('_')[1].split('.')[0]}_{rig}"
 
-		if cfg.DEBUG:
-			cv2.imwrite(f'./debug/image_{cfg.TIME}.png', image)
-			cv2.imwrite(f'./debug/gt_{cfg.TIME}.png', gt * 255)
+		image = self.transform(image.copy()) if self.transform else transforms.ToTensor()(image.copy()) / 255
 
-		if self.transform is not None:
-			image = self.transform(image.copy())  # todo: 了解这里为什么如果不使用copy的话偶尔会报负步长的错误
-		else:
-			image = transforms.ToTensor()(image.copy())
-			image = image / 255
-
-		# image的序号名
-		info = self.mode + '_' + os.path.basename(self.image_list[idx]).split('_')[1].split('.')[0] + f'_{rig}'
-
-		if self.net == 'can' or self.net == 'can-alex':
-			batch = {
-				'image': image,
-				'gt': gt,
-				'info': info,
-				'rgb': rgb,  # todo: 分为训练和测试返回不同的内容
-			}
+		if self.net in ['can', 'can-alex']:
+			batch = {'image': image, 'gt': gt, 'info': info, 'rgb': rgb}
 		elif self.net == 'p2p':
-			# gt需要额外处理，添加反例
-			labels = gt.flatten()  # 展平
-			points = np.indices(gt.shape).reshape(2, -1).T  # gt_index对应的坐标
-			gt = {
-				'labels': labels,
-				'points': points,
-			}
-			batch = {
-				'image': image,
-				'gt': gt,
-				'info': info,
-				'rgb': rgb,  # todo: 分为训练和测试返回不同的内容
-			}
+			labels = gt.flatten()
+			points = np.indices(gt.shape).reshape(2, -1).T
+			batch = {'image': image, 'gt': {'labels': labels, 'points': points}, 'info': info, 'rgb': rgb}
 		else:
-			assert self.net is None, 'net provision required'
+			assert self.net is None, 'Net provision required'
 
 		return batch
+
+	def _prepare_gt(self):
+		if self.net in ['can', 'can-alex']:
+			if not glob.glob(self.gt_path + '/*can*.h5'):
+				print('Generating .h5 from .mat for can/can-alex')
+				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='can')
+			self.gt_list = sorted(glob.glob(self.gt_path + '/*can*.h5'))
+		elif self.net == 'p2p':
+			if not glob.glob(self.gt_path + '/*p2p*.h5'):
+				print('Generating .h5 from .mat for p2p')
+				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='p2p')
+			self.gt_list = sorted(glob.glob(self.gt_path + '/*p2p*.h5'))
+		else:
+			assert self.net is None, 'Net provision required'
 
 	def _data_enhancement(self, image, gt):
 		"""
@@ -110,25 +82,9 @@ class CustomDataset(Dataset):
 		ratio = 0.5
 		h, w = image.shape[:2]
 		rdn = random.random()
-		if rdn < 0.25:
-			rig = '0_0'
-			dx = 0
-			dy = 0
-		elif rdn < 0.5:
-			rig = '1_0'
-			dx = w * ratio
-			dy = 0
-		elif rdn < 0.75:
-			rig = '0_1'
-			dx = 0
-			dy = h * ratio
-		else:
-			rig = '1_1'
-			dx = w * ratio
-			dy = h * ratio
-
-		dx = int(dx)
-		dy = int(dy)
+		rig = ['0_0', '1_0', '0_1', '1_1'][int(rdn * 4)]
+		dx = int(w * ratio * (rig[0] == '1'))
+		dy = int(h * ratio * (rig[2] == '1'))
 		crop_x = int(dx + w * ratio)
 		crop_y = int(dy + h * ratio)
 		crop_image = image[dy:crop_y, dx:crop_x, :]
@@ -139,10 +95,14 @@ class CustomDataset(Dataset):
 			crop_image = np.fliplr(crop_image)
 			crop_gt = np.fliplr(crop_gt)
 
-		# 对gt密度图进行缩放，但sum并不发生改变(0.0x误差)。缩放是为了提高网络的感受野，并且符合网络输出形状
-		# p2p模式无需缩放
 		if self.scaling is not None and not cfg.DEBUG and self.net != 'p2p':
 			crop_gt = cv2.resize(crop_gt, (
 			int(crop_gt.shape[1] / 8), int(crop_gt.shape[0] / 8)), interpolation=cv2.INTER_CUBIC) * self.scaling ** 2
 
 		return crop_image, crop_gt, rig
+
+	def _data_downsample(self, image, gt, downsample=4):
+		image = cv2.resize(image, (
+		image.shape[1] // downsample, image.shape[0] // downsample), interpolation=cv2.INTER_CUBIC)
+		gt = block_reduce(gt, block_size=(downsample, downsample), func=np.max)
+		return image, gt
