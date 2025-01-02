@@ -32,16 +32,16 @@ __C.DATA.SAVE_DENSITY_PATH = './result/density'
 __C.DATA.CKPT_SAVE_PATH = './result/ckpt/'  # 模型权重文件保存位置
 __C.DATA.LOG_DIR = './logs/tensorboard'
 
-__C.DATA.USE_CKPT = False  # 使用保存的模型
+__C.DATA.USE_CKPT = True  # 使用保存的模型
 __C.DATA.CKPT_DATA = None  # or like '2024-11-11'
-__C.DATA.CKPT_NAME = None  # or like 'ckpt_40'
+__C.DATA.CKPT_NAME = 'ckpt_500_160234'  # or like 'ckpt_40'
 
-__C.DATA.BATCH_SIZE = 20
+__C.DATA.BATCH_SIZE = 40
 __C.DATA.SCALING = 8
 # --------------------------TRAIN-------------------------- #
 __C.TRAIN.SHUFFLE = True
 __C.TRAIN.EPOCHS = 500
 __C.TRAIN.PRETRAINED = False
-__C.TRAIN.LR = 1e-3  # 1e-4 before
-__C.TRAIN.WEIGHT_DECAY = 1e-4  # 5 * 1e-4 before
+__C.TRAIN.LR = 1e-4  # 1e-4 default
+__C.TRAIN.WEIGHT_DECAY = 5 * 1e-4  # 5 * 1e-4 default
 __C.TRAIN.LOG = 5

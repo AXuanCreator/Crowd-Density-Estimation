@@ -68,7 +68,7 @@ def load_model(path, model):
 	model.load_state_dict(state_dict)
 
 
-def save_density_image(path, x, binarization=True, up_sample=None):
+def save_density_image(x, path=None, binarization=True, up_sample=None):
 	"""
 	保存密度图
 	Args:
@@ -97,15 +97,16 @@ def save_density_image(path, x, binarization=True, up_sample=None):
 		x = np.where(x > 5, 255, 0).astype(np.uint8)
 		res = x
 
-	if not os.path.exists(os.path.dirname(path)):
-		os.makedirs(os.path.dirname(path), exist_ok=True)
+	if path is not None:
+		if not os.path.exists(os.path.dirname(path)):
+			os.makedirs(os.path.dirname(path), exist_ok=True)
 
-	cv2.imwrite(path, x)
+		cv2.imwrite(path, x)
 
 	return res
 
 
-def save_image_with_contours(path, binary_x, rgb):
+def save_image_with_contours(binary_x, rgb, path=None):
 	"""
 	保存带有检测框的RGB图像
 	Args:
@@ -114,16 +115,13 @@ def save_image_with_contours(path, binary_x, rgb):
 		rgb: [tensor/ndarray] RGB图像 [h, w, 3]
 
 	Returns:
-	 	None | 输出图像文件
+	 	ndarray | 输出图像文件
 	todo: 优化检测框，二值化太极端了
 	"""
 	assert len(binary_x.shape) == 2 and len(rgb.shape) == 3, 'binary_x shape: [h, w] | rgb shape: [h, w, 3]'
 
 	if isinstance(rgb, torch.Tensor):
 		rgb = rgb.detach().cpu().numpy()
-
-	if not os.path.exists(os.path.dirname(path)):
-		os.makedirs(os.path.dirname(path), exist_ok=True)
 
 	rgb = rgb.copy()
 	contours, _ = cv2.findContours(binary_x, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -135,7 +133,12 @@ def save_image_with_contours(path, binary_x, rgb):
 		w = w * (10 - w) if w < 10 else w
 		cv2.rectangle(rgb, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-	cv2.imwrite(path, rgb[:, :, [2, 1, 0]])  # imwrite需要bgr格式
+	if path is not None:
+		if not os.path.exists(os.path.dirname(path)):
+			os.makedirs(os.path.dirname(path), exist_ok=True)
+		cv2.imwrite(path, rgb[:, :, [2, 1, 0]])  # imwrite需要bgr格式
+
+	return rgb[:, :, [2, 1, 0]]
 
 
 def merge_density(X: list):

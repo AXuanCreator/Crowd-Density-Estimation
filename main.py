@@ -33,35 +33,34 @@ def main(mode, net):
 	# loading checkpoints
 	if cfg.DATA.USE_CKPT:
 		if cfg.DATA.CKPT_DATA is not None:  # 选择特定日期的最新权重
-			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.TRAIN.CKPT_DATA}/{net}/*.pth'),
+			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.TRAIN.CKPT_DATA}/{net}/*.pth', recursive=True),
 			              key=os.path.getmtime)[-1]
 		elif cfg.DATA.CKPT_NAME is not None:  # 选择特定关键词的最新权重
-			paths = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth'), key=os.path.getmtime)
-			path = [path for path in paths if f'{cfg.TRAIN.CKPT_NAME}' in path][-1]  # 获取指定名字的模型
+			paths = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth', recursive=True), key=os.path.getmtime)
+			path = [path for path in paths if f'{cfg.DATA.CKPT_NAME}' in path][-1]  # 获取指定名字的模型
 		else:  # 选择最新权重
-			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth'), key=os.path.getmtime)[-1]  # newest
+			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth', recursive=True), key=os.path.getmtime)[-1]  # newest
 		load_model(path, model)
 		start_epoch = int(path.split('\\')[-1].split('_')[1]) + 1
 
 	# loss function
-	if net == 'can' or net == 'can-alex':
+	if net in ['can', 'can-alex']:
 		criterion = torch.nn.MSELoss(reduction='sum')  # loss function
+		optimizer = torch.optim.Adam(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 	elif net == 'p2p':
 		criterion = P2P_Loss()
-
-	# optimizer = torch.optim.Adam(model.parameters(), lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
-
-	# for p2p optimizer
-	model_without_ddp = model
-	param_dicts = [
-		{"params": [p for n, p in model_without_ddp.named_parameters() if "backbone" not in n and p.requires_grad]},
-		{
-			"params": [p for n, p in model_without_ddp.named_parameters() if "backbone" in n and p.requires_grad],
-			"lr": 1e-5,
-		},
-	]
-	optimizer = torch.optim.Adam(param_dicts, lr=1e-4)
-	lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 3500)
+		model_without_ddp = model
+		param_dicts = [
+			{"params": [p for n, p in model_without_ddp.named_parameters() if "backbone" not in n and p.requires_grad]},
+			{
+				"params": [p for n, p in model_without_ddp.named_parameters() if "backbone" in n and p.requires_grad],
+				"lr": 1e-5,
+			},
+		]
+		optimizer = torch.optim.Adam(param_dicts, lr=1e-4)
+		lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 3500)
+	else:
+		raise NotImplementedError
 
 	# train & test
 	best_mae = 1e10
@@ -161,7 +160,7 @@ def valid(model, net, epoch):
 
 		mae += abs(pred_cnt - tgt_cnt)
 
-		if epoch % cfg.DATA.SAVE_IMAGE_EPOCH == 0 and random.random() > 0.5:
+		if epoch % cfg.DATA.SAVE_IMAGE_EPOCH == 0 and random.random() > 0.5 or True:
 			current = cfg.CURRENT_TIME.replace('-', '')
 			if net in ['can', 'can-alex']:
 				merge = merge_density([density.squeeze().detach().cpu().numpy() for density in output_list])
@@ -194,7 +193,7 @@ def valid(model, net, epoch):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--mode', '-m', type=str, default='train', help='train/valid/both')
+	parser.add_argument('--mode', '-m', type=str, default='valid', help='train/valid/both')
 	parser.add_argument('--net', '-n', type=str, default='can-alex', help='models: can/can-alex/p2p')
 
 	args = parser.parse_args()
