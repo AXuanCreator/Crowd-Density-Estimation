@@ -194,7 +194,7 @@ def valid(model, net, epoch):
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--mode', '-m', type=str, default='both', help='train/valid/both')
+	parser.add_argument('--mode', '-m', type=str, default='train', help='train/valid/both')
 	parser.add_argument('--net', '-n', type=str, default='can-alex', help='models: can/can-alex/p2p')
 
 	args = parser.parse_args()

@@ -38,10 +38,12 @@ class CustomDataset(Dataset):
 		if self.net == 'p2p':
 			image, gt = self._data_downsample(image, gt, downsample=4)
 
+		# rgb&gt图输出
 		if cfg.DEBUG:
 			combine_image = np.hstack((image, np.repeat(np.expand_dims(gt, axis=-1), 3, axis=-1) * 255))
 			cv2.imwrite(f'./debug/image&gt_{cfg.CURRENT_TIME}.png', combine_image)
 
+		# 数据增强
 		if self.mode == 'train':
 			image, gt, rig = self._data_enhancement(image, gt)
 
@@ -63,12 +65,12 @@ class CustomDataset(Dataset):
 
 	def _prepare_gt(self):
 		if self.net in ['can', 'can-alex']:
-			if not glob.glob(self.gt_path + '/*can*.h5'):
+			if len(glob.glob(self.gt_path + '/*can*.h5')) != len(self.image_list):
 				print('Generating .h5 from .mat for can/can-alex')
 				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='can')
 			self.gt_list = sorted(glob.glob(self.gt_path + '/*can*.h5'))
 		elif self.net == 'p2p':
-			if not glob.glob(self.gt_path + '/*p2p*.h5'):
+			if len(glob.glob(self.gt_path + '/*p2p*.h5')) != len(self.image_list):
 				print('Generating .h5 from .mat for p2p')
 				generate_h5(self.gt_path, *cv2.imread(self.image_list[0]).shape[:2], net='p2p')
 			self.gt_list = sorted(glob.glob(self.gt_path + '/*p2p*.h5'))
@@ -95,7 +97,7 @@ class CustomDataset(Dataset):
 			crop_image = np.fliplr(crop_image)
 			crop_gt = np.fliplr(crop_gt)
 
-		if self.scaling is not None and not cfg.DEBUG and self.net != 'p2p':
+		if self.scaling is not None and self.net != 'p2p':
 			crop_gt = cv2.resize(crop_gt, (
 			int(crop_gt.shape[1] / 8), int(crop_gt.shape[0] / 8)), interpolation=cv2.INTER_CUBIC) * self.scaling ** 2
 
