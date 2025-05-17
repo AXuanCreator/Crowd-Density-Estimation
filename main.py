@@ -15,31 +15,17 @@ from dataset import CustomDataset
 from models.can import CANet, CanAlexNet
 from models.p2pnet import P2PNet, P2P_Loss
 from utils import save_model, load_model, save_density_image, save_image_with_contours, merge_density, \
-	plot_points_on_rgb
+	plot_points_on_rgb, create_model, get_latest_checkpoint_path, configure_optimizer
 
 
 def main(mode, net):
 	start_epoch = 1
 	# load model
-	if net == 'can':
-		model = CANet().to('cuda')
-	elif net == 'can-alex':
-		model = CanAlexNet().to('cuda')
-	elif net == 'p2p':
-		model = P2PNet().to('cuda')
-	else:
-		raise NotImplementedError
+	model = create_model(net)
 
 	# loading checkpoints
 	if cfg.DATA.USE_CKPT:
-		if cfg.DATA.CKPT_DATA is not None:  # 选择特定日期的最新权重
-			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + f'/{cfg.TRAIN.CKPT_DATA}/{net}/*.pth', recursive=True),
-			              key=os.path.getmtime)[-1]
-		elif cfg.DATA.CKPT_NAME is not None:  # 选择特定关键词的最新权重
-			paths = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth', recursive=True), key=os.path.getmtime)
-			path = [path for path in paths if f'{cfg.DATA.CKPT_NAME}' in path][-1]  # 获取指定名字的模型
-		else:  # 选择最新权重
-			path = sorted(glob.glob(cfg.DATA.CKPT_SAVE_PATH + '/**/*.pth', recursive=True), key=os.path.getmtime)[-1]  # newest
+		path = get_latest_checkpoint_path(net)
 		load_model(path, model)
 		start_epoch = int(path.split('\\')[-1].split('_')[1]) + 1
 

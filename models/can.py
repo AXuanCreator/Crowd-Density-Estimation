@@ -5,6 +5,7 @@ from torch.nn import functional as F
 
 from .context import CANContext
 
+
 # todo: 将这两个函数移动到别的文件
 def make_layers(layer, in_channels=3, batch_norm=False, dilation=False):
 	if dilation:
@@ -110,7 +111,6 @@ class CanAlexNet(nn.Module):
 			frontend_weights = list(self.frontend.state_dict().items())
 			for i in range(len(self.frontend.state_dict().items())):
 				frontend_weights[i][1].data[:] = alex_weights[i][1].data[:]
-
 
 	def forward(self, x):
 		x = self.frontend(x)

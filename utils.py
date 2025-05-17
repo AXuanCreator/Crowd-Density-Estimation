@@ -8,6 +8,15 @@ import numpy as np
 import scipy.io as io
 from scipy.ndimage import gaussian_filter
 
+from config import cfg
+from models.can import CANet, CanAlexNet
+from models.p2pnet import P2PNet, P2P_Loss
+
+MODEL_MAP = {
+	'can': CANet,
+	'can-alex': CanAlexNet,
+	'p2p': P2PNet
+}
 
 def generate_h5(gt_path, h, w, net=None):
 	# todo: 对于配置高的电脑实际上不需要p2p的下采样
@@ -32,6 +41,13 @@ def generate_h5(gt_path, h, w, net=None):
 
 		with h5py.File(gmp.replace('.mat', f'-{net}.h5'), 'w') as hf:
 			hf['density'] = k
+
+
+def create_model(net):
+	model_class = MODEL_MAP.get(net)
+	if not model_class:
+		raise NotImplementedError(f"Model {net} not implemented")
+	return model_class().to('cuda')
 
 
 def save_model(path, model, name):
@@ -66,6 +82,19 @@ def load_model(path, model):
 
 	state_dict = torch.load(path, weights_only=True)
 	model.load_state_dict(state_dict)
+
+
+def get_latest_checkpoint_path(net):
+	if cfg.DATA.CKPT_DATA:
+		pattern = f'{cfg.DATA.CKPT_SAVE_PATH}/{cfg.TRAIN.CKPT_DATA}/{net}/*.pth'
+	elif cfg.DATA.CKPT_NAME:
+		pattern = f'{cfg.DATA.CKPT_SAVE_PATH}/**/*{cfg.DATA.CKPT_NAME}*.pth'
+	else:
+		pattern = f'{cfg.DATA.CKPT_SAVE_PATH}/**/*.pth'
+
+	paths = sorted(glob.glob(pattern, recursive=True),
+	               key=os.path.getmtime)
+	return paths[-1] if paths else None
 
 
 def save_density_image(x, path=None, binarization=True, up_sample=None):

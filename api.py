@@ -7,16 +7,14 @@ from utils import load_model, merge_density, save_density_image, save_image_with
 image_transform = transforms.Compose([transforms.ToTensor(),
                                       transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
 
+model = CanAlexNet().to('cuda')
+load_model('./checkpoints/ckpt_500_160234.pth', model)
 
-def generate_countours_rgb(image, model):
-	# todo: 加载model这一部分可以移动到外部
-	if model is None:
-		model = CanAlexNet().to('cuda')
-		load_model('./checkpoints/can_alexnet-500.pth', model)
 
-	img = image_transform(image.copy())
-	h, w = img.shape[2:4]
+def generate_countours_rgb(image):
+	h, w = image.shape[0:2]
 	h_biset, w_biset = h // 2, w // 2
+	img = image_transform(image.copy()).unsqueeze(0).to('cuda')
 	img_parts = [
 		img[:, :, :h_biset, :w_biset],
 		img[:, :, h_biset:, :w_biset],
@@ -29,3 +27,11 @@ def generate_countours_rgb(image, model):
 	contours_rgb = save_image_with_contours(binary_x=binary_x, rgb=image)
 
 	return contours_rgb
+
+
+if __name__ == '__main__':
+	from PIL import Image
+	img = Image.open('./debug/test.png').convert('RGB')
+	img = np.array(img)
+	x = generate_countours_rgb(image=img)
+	print(x)
