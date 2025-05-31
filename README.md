@@ -1,6 +1,6 @@
 # Deep Neural Network Based Crowd Density Estimation
 
-This project aims to estimate crowd density using only deep neural networks, without relying on any other detection methods. In the planning of this project, the refactoring of the code of the existing thesis method will be prioritized first, and then a new network architecture will be attempted to be used for density estimation
+This project aims to estimate crowd density using only deep neural networks, without relying on any other detection methods. In the planning of this project, the refactoring of the code of the existing thesis method will be prioritized first, and then a new network architecture will be attempted to be used for density estimation.
 
 </br>
 
