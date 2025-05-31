@@ -14,5 +14,11 @@ from config import cfg
 from dataset import CustomDataset
 from models.can import CANet, CanAlexNet
 from models.p2pnet import P2PNet, P2P_Loss
-from utils import save_model, load_model, save_density_image, save_image_with_contours, merge_density, \
-	plot_points_on_rgb
+from utils import (
+    save_model,
+    load_model,
+    save_density_image,
+    save_image_with_contours,
+    merge_density,
+    plot_points_on_rgb,
+)
